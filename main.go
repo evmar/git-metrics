@@ -15,7 +15,7 @@ type Commit struct {
 	Date   int                    `json:"date"`
 	Desc   string                 `json:"desc"`
 	Data   map[string]interface{} `json:"data,omitempty"`
-	Failed bool                   `json:"failed,omitempty"`
+	Broken bool                   `json:"broken,omitempty"`
 }
 
 type db struct {
@@ -80,7 +80,7 @@ type config struct {
 }
 
 func getCommits(dir string) ([]*Commit, error) {
-	cmd := exec.Command("git", "log", "--pretty=format:%H %ct %s", "-n", "100", "main")
+	cmd := exec.Command("git", "log", "--pretty=format:%H %ct %s", "-n", "500", "main")
 	cmd.Dir = dir
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
@@ -108,13 +108,13 @@ func getCommits(dir string) ([]*Commit, error) {
 }
 
 func runOne(config *config, commit *Commit) error {
-	fmt.Println("running for", commit.Commit)
+	fmt.Println("git-metrics: evaluating", commit.Commit)
 
 	cmd := exec.Command("git", "checkout", commit.Commit)
 	cmd.Dir = config.dir
 	cmd.Stderr = os.Stderr
 	if err := cmd.Run(); err != nil {
-		return nil
+		return fmt.Errorf("git checkout failed: %w", err)
 	}
 
 	cmd = exec.Command("/bin/sh", "-c", config.cmd)
@@ -124,9 +124,12 @@ func runOne(config *config, commit *Commit) error {
 	cmd.Stderr = os.Stderr
 	out, err := cmd.Output()
 	if err != nil {
-		fmt.Printf("=> %v\n\n", err)
-		commit.Failed = true
-		return nil
+		if len(out) > 0 {
+			fmt.Printf("%s", out)
+		} else {
+			fmt.Printf("[metrics command had no output]\n")
+		}
+		return fmt.Errorf("metrics tool failed: %w", err)
 	}
 
 	value, err := strconv.ParseFloat(strings.TrimSpace(string(out)), 64)
@@ -134,10 +137,34 @@ func runOne(config *config, commit *Commit) error {
 		return fmt.Errorf("failed to parse output as float: %v", err)
 	}
 
-	fmt.Printf("=> %f\n\n", value)
+	fmt.Printf("git-metrics: => %f\n\n", value)
 
 	commit.Data = map[string]interface{}{"size": value}
 	return nil
+}
+
+func runOneInteractive(config *config, commit *Commit) error {
+	for {
+		err := runOne(config, commit)
+		if err == nil {
+			return nil
+		}
+		fmt.Printf("\ngit-metrics: %v\n", err)
+		for {
+			fmt.Printf("permanently mark (b)roken, or (s)kip for now: ")
+			var resp string
+			if _, err := fmt.Scanln(&resp); err != nil {
+				return err
+			}
+			switch resp {
+			case "b":
+				commit.Broken = true
+				return nil
+			case "s":
+				return nil
+			}
+		}
+	}
 }
 
 func run() error {
@@ -169,10 +196,10 @@ func run() error {
 	}
 
 	for _, commit := range db.commits {
-		if commit.Data != nil {
+		if commit.Data != nil || commit.Broken {
 			continue
 		}
-		if err := runOne(config, commit); err != nil {
+		if err := runOneInteractive(config, commit); err != nil {
 			return err
 		}
 		if err := db.save("db.json"); err != nil {
