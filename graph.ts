@@ -14,25 +14,38 @@ interface Commit {
 interface Commit2 {
   date: Date;
   desc: string;
-  size: number | undefined;
+  size: number;
+  delta: number;
 }
 
 /** Converts a byte count to a pretty '1.23 MB' string. */
 function prettyBytes(bytes: number): string {
-  if (bytes > 1024 * 1024) {
-    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+  const abs = Math.abs(bytes);
+  if (abs > 1024 * 1024) {
+    return `${(bytes / 1024 / 1024).toFixed(2)}mb`;
   }
-  if (bytes > 1024) {
-    return `${(bytes / 1024).toFixed(0)} KB`;
+  if (abs > 1024) {
+    return `${(bytes / 1024).toFixed(0)}kb`;
   }
-  return `${bytes} B`;
+  return `${bytes}b`;
 }
 
 function main() {
   let dbCommits = db as Commit[];
   dbCommits.reverse();
   //commits = commits.filter(c => c.data?.size != null);
-  const commits: Commit2[] = dbCommits.map(c => ({ date: new Date(c.date * 1000), desc: c.desc, size: c.data?.size as number | undefined }));
+  let last = 0;
+  const commits: Commit2[] = dbCommits.map(c => {
+    const size = (c.data?.size ?? last) as number;
+    const delta = size - last;
+    last = size;
+    return {
+      date: new Date(c.date * 1000),
+      desc: c.desc,
+      size,
+      delta,
+    }
+  });
 
   const width = 640;
   const height = 400;
@@ -96,7 +109,7 @@ function main() {
     tooltip.transition()
       .duration(100)
       .style("opacity", 1);
-    tooltip.html(d.desc)
+    tooltip.text(`${d.desc} (${d.delta >= 0 ? '+' : ''}${prettyBytes(d.delta)})`)
       .style("left", (event.pageX) + "px")
       .style("top", (event.pageY - 28) + "px");
   })
