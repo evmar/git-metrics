@@ -48,35 +48,38 @@ function main() {
     .attr("width", width)
     .attr("height", height);
 
-  svg.append("g")
+  // x axis
+  const gx = svg.append("g")
     .attr("transform", `translate(0,${height - margin.bottom})`)
-    .call(d3.axisBottom(x));
 
+  // y axis
   svg.append("g")
     .attr("transform", `translate(${margin.left},0)`)
     .call(d3.axisLeft<number>(y).tickFormat(b => prettyBytes(b)).ticks(5));
 
-  // line chart
-  const line = d3.line<Commit2>()
-    .defined(d => d.size != null)
-    .x(d => x(d.date))
-    .y(d => y(d.size as number))
-    .curve(d3.curveStepAfter);
-  svg.append("path")
+  svg.append("clipPath")
+    .attr("id", 'clip')
+    .append("rect")
+    .attr("x", margin.left)
+    .attr("y", margin.top)
+    .attr("width", width - margin.left - margin.right)
+    .attr("height", height - margin.top - margin.bottom);
+
+  const clipped = svg.append("g")
+    .attr("clip-path", 'url(#clip)');
+
+  const path = clipped.append("path")
     .attr("fill", "none")
     .attr("stroke", "steelblue")
-    .attr("stroke-width", 1.5)
-    .attr("d", line(commits));
+    .attr("stroke-width", 1.5);
 
-  // dots
-  svg.append('g')
+  const dots = clipped.append('g')
     .attr("fill", "white")
     .attr("stroke", "steelblue")
     .attr("stroke-width", 1)
     .selectAll("circle")
     .data(commits.filter(d => d.size != null))
     .join("circle")
-    .attr("transform", d => `translate(${x(d.date)},${y(d.size as number)})`)
     .attr("r", 4)
     .on('mouseover', function (d, i) {
       d3.select(this)
@@ -86,6 +89,29 @@ function main() {
       d3.select(this)
         .attr("stroke-width", 1)
     });
+
+  function render(x: d3.ScaleTime<number, number>) {
+    const line = d3.line<Commit2>()
+      .defined(d => d.size != null)
+      .x(d => x(d.date))
+      .y(d => y(d.size as number))
+      .curve(d3.curveStepAfter);
+    path.attr('d', line(commits));
+    dots.attr("transform", d => `translate(${x(d.date)},${y(d.size as number)})`)
+    gx.call(d3.axisBottom(x));
+  }
+  render(x);
+
+  const zoom = d3.zoom<SVGSVGElement, undefined>()
+    .scaleExtent([1, 32])
+    .extent([[margin.left, 0], [width - margin.right, height]])
+    .translateExtent([[margin.left, -Infinity], [width - margin.right, Infinity]])
+    .on("zoom", zoomed);
+  function zoomed(event: d3.D3ZoomEvent<SVGSVGElement, undefined>) {
+    const xz = event.transform.rescaleX(x);
+    render(xz);
+  }
+  svg.call(zoom);
 
   document.body.appendChild(svg.node()!);
 }
