@@ -33,11 +33,12 @@ function prettyBytes(bytes: number): string {
 function main() {
   let dbCommits = db as Commit[];
   dbCommits.reverse();
-  //commits = commits.filter(c => c.data?.size != null);
+
   let last = 0;
   const commits: Commit2[] = dbCommits.map(c => {
     const size = (c.data?.size ?? last) as number;
     const delta = size - last;
+    if (Math.abs(delta) < 2 * 1024) { return null }
     last = size;
     return {
       date: new Date(c.date * 1000),
@@ -45,14 +46,23 @@ function main() {
       size,
       delta,
     }
-  });
+  }).filter(d => d != null);
+
+  // remove any initial commits with size 0
+  for (let i = 0; i < commits.length; i++) {
+    if (commits[i].size > 0) {
+      commits.splice(0, i);
+      break;
+    }
+  }
 
   const width = 640;
   const height = 400;
   const margin = { top: 20, right: 20, bottom: 30, left: 80 };
 
+  const dateExtent = d3.extent(commits, d => d.date) as [Date, Date];
   const x = d3.scaleUtc()
-    .domain(d3.extent(commits, d => d.date) as [Date, Date])
+    .domain([d3.timeDay.offset(dateExtent[0], -1), dateExtent[1]])
     .range([margin.left, width - margin.right]);
 
   const y = d3.scaleLinear()
@@ -78,7 +88,7 @@ function main() {
     .append("rect")
     .attr("x", margin.left)
     .attr("y", margin.top)
-    .attr("width", width - margin.left - margin.right)
+    .attr("width", width - margin.left)  // note: margin.right omitted
     .attr("height", height - margin.top - margin.bottom);
 
   const clipped = svg.append("g")
@@ -106,8 +116,7 @@ function main() {
   dots.on('mouseover', function (event, d) {
     d3.select(this)
       .attr("stroke-width", 2);
-    tooltip.transition()
-      .duration(100)
+    tooltip
       .style("opacity", 1);
     tooltip.text(`${d.desc} (${d.delta >= 0 ? '+' : ''}${prettyBytes(d.delta)})`)
       .style("left", (event.pageX) + "px")
@@ -116,8 +125,7 @@ function main() {
   dots.on('mouseout', function (event, d) {
     d3.select(this)
       .attr("stroke-width", 1);
-    tooltip.transition()
-      .duration(100)
+    tooltip
       .style("opacity", 0);
   });
 
