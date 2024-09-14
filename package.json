@@ -2,7 +2,7 @@
   "name": "git-metrics",
   "scripts": {
     "serve": "esbuild --bundle --format=esm --sourcemap --servedir=. --outfile=bundle.js graph.ts",
-    "build": "esbuild --bundle --format=esm --sourcemap --outfile=bundle.js graph.ts"
+    "build": "esbuild --bundle --format=esm --outfile=bundle.js graph.ts"
   },
   "dependencies": {
     "@types/d3": "^7.4.3",
