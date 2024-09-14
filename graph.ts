@@ -33,18 +33,15 @@ function main() {
 
   const width = 640;
   const height = 400;
-  const marginTop = 20;
-  const marginRight = 20;
-  const marginBottom = 30;
-  const marginLeft = 80;
+  const margin = { top: 20, right: 20, bottom: 30, left: 80 };
 
   const x = d3.scaleUtc()
     .domain(d3.extent(commits, d => d.date) as [Date, Date])
-    .range([marginLeft, width - marginRight]);
+    .range([margin.left, width - margin.right]);
 
   const y = d3.scaleLinear()
     .domain(d3.extent(commits, d => d.size) as [number, number])
-    .range([height - marginBottom, marginTop])
+    .range([height - margin.bottom, margin.top])
     .nice();
 
   const svg = d3.create("svg")
@@ -52,11 +49,11 @@ function main() {
     .attr("height", height);
 
   svg.append("g")
-    .attr("transform", `translate(0,${height - marginBottom})`)
+    .attr("transform", `translate(0,${height - margin.bottom})`)
     .call(d3.axisBottom(x));
 
   svg.append("g")
-    .attr("transform", `translate(${marginLeft},0)`)
+    .attr("transform", `translate(${margin.left},0)`)
     .call(d3.axisLeft<number>(y).tickFormat(b => prettyBytes(b)).ticks(5));
 
   // line chart
