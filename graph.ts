@@ -56,9 +56,9 @@ function main() {
     }
   }
 
-  const width = 640;
+  const width = 800;
   const height = 400;
-  const margin = { top: 20, right: 20, bottom: 30, left: 80 };
+  const margin = { top: 20, right: 20, bottom: 30, left: 50 };
 
   const dateExtent = d3.extent(commits, d => d.date) as [Date, Date];
   const x = d3.scaleUtc()
@@ -152,7 +152,7 @@ function main() {
   }
   svg.call(zoom);
 
-  document.body.appendChild(svg.node()!);
+  document.getElementById('graph')!.appendChild(svg.node()!);
 }
 
 main();
