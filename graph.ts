@@ -1,6 +1,7 @@
 import db from './db.json' with { type: 'json' };
 import * as d3 from 'd3';
 
+/** Commits as they come in from db.json. */
 interface Commit {
   commit: string;
   date: number;
@@ -9,12 +10,14 @@ interface Commit {
   failed?: boolean;
 }
 
+/** Commits after loading/preprocessing. */
 interface Commit2 {
   date: Date;
   desc: string;
   size: number | undefined;
 }
 
+/** Converts a byte count to a pretty '1.23 MB' string. */
 function prettyBytes(bytes: number): string {
   if (bytes > 1024 * 1024) {
     return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
@@ -80,15 +83,30 @@ function main() {
     .selectAll("circle")
     .data(commits.filter(d => d.size != null))
     .join("circle")
-    .attr("r", 4)
-    .on('mouseover', function (d, i) {
-      d3.select(this)
-        .attr("stroke-width", 2)
-    })
-    .on('mouseout', function (d, i) {
-      d3.select(this)
-        .attr("stroke-width", 1)
-    });
+    .attr("r", 4);
+
+  const tooltip = d3.select("body")
+    .append("div")
+    .attr("class", "tooltip")
+    .style("opacity", 0);
+
+  dots.on('mouseover', function (event, d) {
+    d3.select(this)
+      .attr("stroke-width", 2);
+    tooltip.transition()
+      .duration(100)
+      .style("opacity", 1);
+    tooltip.html(d.desc)
+      .style("left", (event.pageX) + "px")
+      .style("top", (event.pageY - 28) + "px");
+  })
+  dots.on('mouseout', function (event, d) {
+    d3.select(this)
+      .attr("stroke-width", 1);
+    tooltip.transition()
+      .duration(100)
+      .style("opacity", 0);
+  });
 
   function render(x: d3.ScaleTime<number, number>) {
     const line = d3.line<Commit2>()
@@ -103,7 +121,7 @@ function main() {
   render(x);
 
   const zoom = d3.zoom<SVGSVGElement, undefined>()
-    .scaleExtent([1, 32])
+    .scaleExtent([1, 200])
     .extent([[margin.left, 0], [width - margin.right, height]])
     .translateExtent([[margin.left, -Infinity], [width - margin.right, Infinity]])
     .on("zoom", zoomed);
