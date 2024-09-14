@@ -45,12 +45,13 @@ func (db *db) merge(commits []*Commit) {
 		for i, d := range db.commits {
 			if c.Commit == d.Commit {
 				c = d
-				db.commits = db.commits[i:]
+				db.commits = db.commits[i+1:]
 				break
 			}
 		}
 		out = append(out, c)
 	}
+	out = append(out, db.commits...)
 	db.commits = out
 }
 
