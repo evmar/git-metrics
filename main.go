@@ -144,6 +144,19 @@ func runOne(config *config, commit *Commit) error {
 	return nil
 }
 
+func prompt(msg string, letters string) (byte, error) {
+	for {
+		fmt.Print(msg)
+		var resp string
+		if _, err := fmt.Scanln(&resp); err != nil {
+			return 0, err
+		}
+		if len(resp) == 1 && strings.Contains(letters, resp) {
+			return resp[0], nil
+		}
+	}
+}
+
 func runOneInteractive(config *config, commit *Commit) error {
 	for {
 		err := runOne(config, commit)
@@ -151,19 +164,18 @@ func runOneInteractive(config *config, commit *Commit) error {
 			return nil
 		}
 		fmt.Printf("\ngit-metrics: %v\n", err)
-		for {
-			fmt.Printf("permanently mark (b)roken, or (s)kip for now: ")
-			var resp string
-			if _, err := fmt.Scanln(&resp); err != nil {
-				return err
-			}
-			switch resp {
-			case "b":
-				commit.Broken = true
-				return nil
-			case "s":
-				return nil
-			}
+		choice, err := prompt("(r)etry, permanently mark (b)roken, or (s)kip for now: ", "rbs")
+		if err != nil {
+			return err
+		}
+		switch choice {
+		case 'r':
+			continue
+		case 'b':
+			commit.Broken = true
+			return nil
+		case 's':
+			return nil
 		}
 	}
 }
